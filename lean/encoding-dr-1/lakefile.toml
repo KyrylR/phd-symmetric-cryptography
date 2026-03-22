@@ -1,0 +1,10 @@
+name = "encoding_proofs"
+version = "0.1.0"
+defaultTargets = ["EncodingProofs"]
+
+[[lean_lib]]
+name = "EncodingProofs"
+
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"

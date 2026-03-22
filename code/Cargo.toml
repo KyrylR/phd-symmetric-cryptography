@@ -1,0 +1,36 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/encoding",
+    "crates/ring_crypto",
+]
+
+[workspace.package]
+edition = "2024"
+version = "0.1.0"
+rust-version = "1.92.0"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/KyrylR/phd-symmetric-cryptography"
+homepage = "https://github.com/KyrylR/phd-symmetric-cryptography"
+documentation = "https://github.com/KyrylR/phd-symmetric-cryptography"
+authors = ["Kyrylo Riabov <kyryl.ryabov@gmail.com"]
+description = "Workspace for PhD thesis code"
+keywords = ["research", "math", "groups"]
+categories = ["science"]
+readme = "README.md"
+publish = true
+
+[workspace.dependencies]
+sym-adv-ring = { version = "=0.1.0", path = "crates/ring_crypto" }
+thiserror = "2"
+
+rand = "0.10"
+
+serde = { version = "1", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+serde_json = "1"
+
+# For testing
+proptest = "1"
+criterion = "0.8"

@@ -1,0 +1,30 @@
+[package]
+name = "sym-adv-encoding"
+edition.workspace = true
+version.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation = "https://docs.rs/sym-adv-encoding"
+authors.workspace = true
+description = "UTF-8 and byte encoders for ring-element payloads used in the symmetric-cryptography PhD artifacts"
+keywords.workspace = true
+categories.workspace = true
+readme = "README.md"
+publish.workspace = true
+
+[dependencies]
+sym-adv-ring.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+constriction = "0.4"
+criterion.workspace = true
+num-bigint = "0.4"
+proptest.workspace = true
+rand.workspace = true
+
+[[bench]]
+name = "base_m_len"
+harness = false

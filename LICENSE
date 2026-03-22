@@ -1,0 +1,33 @@
+PhD Symmetric Cryptography Repository Licensing
+Copyright (c) 2026 Kyrylo Riabov
+
+This repository uses a split licensing model.
+
+The files `LICENSE`, `LICENSE-MIT`, `LICENSE-APACHE`, and
+`LICENSE-CC-BY-4.0` are policy/license texts and are not reassigned by the
+mapping below.
+
+Software and source artifacts
+- `code/**`
+- `lean/**`
+- all remaining repository files not listed below, including root-level
+  configuration files such as `.gitignore`
+
+These files are available under either of the following licenses, at your
+option:
+- MIT License (see LICENSE-MIT)
+- Apache License 2.0 (see LICENSE-APACHE)
+
+Text and article materials
+- `text/**`
+- the root `README.md`
+
+These files are licensed under the Creative Commons Attribution 4.0
+International license (see LICENSE-CC-BY-4.0).
+
+Third-party material
+- Any third-party material included in this repository and clearly marked as
+  such remains under its own license or terms.
+
+Unless otherwise noted in a file or accompanying notice, this policy governs
+the repository.
