@@ -7,7 +7,7 @@ members = [
 
 [workspace.package]
 edition = "2024"
-version = "0.1.0"
+version = "0.1.1"
 rust-version = "1.92.0"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/KyrylR/phd-symmetric-cryptography"
@@ -21,7 +21,7 @@ readme = "README.md"
 publish = true
 
 [workspace.dependencies]
-sym-adv-ring = { version = "=0.1.0", path = "crates/ring_crypto" }
+sym-adv-ring = { version = "=0.1.1", path = "crates/ring_crypto" }
 thiserror = "2"
 
 rand = "0.10"
