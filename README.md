@@ -1,5 +1,12 @@
 # PhD Symmetric Cryptography
 
+## TODOs 
+
+### Canonical Byte-String Encoding for Finite-Ring Cryptosystems
+
+- [ ] Use permanent links in the article: text/encoding
+- [ ] Refine the implementation to be more inline with article's structure
+
 ## Links 
 
 - Advancing symmetric cryptography for secure applications: https://cordis.europa.eu/project/id/101160608

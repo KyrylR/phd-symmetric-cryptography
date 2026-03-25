@@ -49,7 +49,7 @@ jobs:
   publish:
     needs:
       - verify
-      - lean-verify
+      - lean-verify-encoding
     if: vars.CRATES_IO_TRUSTED_PUBLISHING_ENABLED == 'true'
     runs-on: ubuntu-latest
     environment: crates-io-publish
