@@ -1,0 +1,39 @@
+# LaTeX auxiliary files
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.bbl
+*.blg
+*.bcf
+*.run.xml
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.synctex(busy)
+
+# Beamer auxiliary files
+*.nav
+*.snm
+*.vrb
+
+# Generated files
+*.dvi
+*.ps
+
+# Output directory (keep structure, ignore contents)
+out/*
+!out/.gitkeep
+
+# Editor backups
+*~
+*.backup
+*.bak
+
+# macOS
+.DS_Store
+
+# PDF files (uncomment to track PDFs)
+# *.pdf
