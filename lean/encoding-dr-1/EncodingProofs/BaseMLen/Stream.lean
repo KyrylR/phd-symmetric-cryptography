@@ -2,12 +2,14 @@ import EncodingProofs.BaseMLen.Payload
 import Mathlib
 
 /-!
-End-to-end stream lemmas for the length-delimited base-`m` format.
+End-to-end stream lemmas for the width-parametric length-delimited base-`m`
+format.
 
 This file combines the prefix, renormalization, and payload results to reason
 about the externally visible wire format
 `length || state || payload`. The main outcome is that decoding the encoded
-stream recovers the original bytes, even when extra trailing digits are appended.
+stream recovers the original bytes, even when extra trailing digits are
+appended.
 -/
 
 namespace EncodingProofs.BaseMLen
@@ -15,29 +17,29 @@ namespace EncodingProofs.BaseMLen
 namespace Params
 
 /-- Length formula for the encoded stream. The header consists of two fixed-width
-prefixes of size `p.lengthPrefixDigits`, followed by the variable-length payload.
-This arithmetic description of the wire format is later used when proving that
-the decoder has enough digits to read each header block. -/
-theorem encode_header_length (p : Params) (bytes : ByteString) :
+prefixes of size `p.lengthPrefixDigits`, followed by the variable-length
+payload. This arithmetic description of the wire format is later used when
+proving that the decoder has enough digits to read each header block. -/
+theorem encode_header_length (p : Params) (bytes : ByteString p.width) :
     (encode p bytes).length = 2 * p.lengthPrefixDigits + (encodePayload p bytes.1).2.length := by
   simp [encode, encodeFixedWidthNat_length, two_mul, Nat.add_comm, Nat.add_left_comm]
 
 /-- Every digit emitted by `encode` is a valid base-`m` digit. This is immediate
 from the type of the output list, but the theorem exists as the explicit
 "valid residues" statement used by the paper and later reasoning. -/
-theorem encode_digits_lt_modulus (p : Params) (bytes : ByteString) :
+theorem encode_digits_lt_modulus (p : Params) (bytes : ByteString p.width) :
     ∀ d ∈ encode p bytes, d.1 < p.modulus := by
   intro d _hd
   exact d.2
 
-/-- Taking the first `k = p.lengthPrefixDigits` digits from `encode p bytes ++ tail`
-recovers exactly the encoded length prefix.
+/-- Taking the first `k = p.lengthPrefixDigits` digits from `encode p bytes ++
+tail` recovers exactly the encoded length prefix.
 
 How the proof works: expand `encode` as `lenDigits ++ stateDigits ++ payload`,
 observe that `lenDigits.length = k` by `encodeFixedWidthNat_length`, and then
 apply `List.take_append_of_le_length`. This lemma matches the decoder's first
 parsing step. -/
-theorem encode_take_len (p : Params) (bytes : ByteString) (tail : List (Digit p.modulus)) :
+theorem encode_take_len (p : Params) (bytes : ByteString p.width) (tail : List (Digit p.modulus)) :
     List.take p.lengthPrefixDigits (encode p bytes ++ tail) =
       encodeFixedWidthNat p p.lengthPrefixDigits bytes.1.length := by
   let k := p.lengthPrefixDigits
@@ -61,7 +63,7 @@ How the proof works: write `encode p bytes ++ tail` as
 `List.drop_append_of_le_length` with `lenDigits.length = k`. This lemma matches
 the decoder's transition from parsing the length prefix to parsing the state
 prefix. -/
-theorem encode_drop_len (p : Params) (bytes : ByteString) (tail : List (Digit p.modulus)) :
+theorem encode_drop_len (p : Params) (bytes : ByteString p.width) (tail : List (Digit p.modulus)) :
     List.drop p.lengthPrefixDigits (encode p bytes ++ tail) =
       encodeFixedWidthNat p p.lengthPrefixDigits (encodePayload p bytes.1).1 ++
         ((encodePayload p bytes.1).2 ++ tail) := by
@@ -85,7 +87,7 @@ How the proof works: first invoke `encode_drop_len`, then apply
 `List.take_append_of_le_length` to the leading `stateDigits`, whose length is
 again `k` by `encodeFixedWidthNat_length`. This is the list-level version of the
 decoder's second header parse. -/
-theorem encode_take_state (p : Params) (bytes : ByteString) (tail : List (Digit p.modulus)) :
+theorem encode_take_state (p : Params) (bytes : ByteString p.width) (tail : List (Digit p.modulus)) :
     List.take p.lengthPrefixDigits (List.drop p.lengthPrefixDigits (encode p bytes ++ tail)) =
       encodeFixedWidthNat p p.lengthPrefixDigits (encodePayload p bytes.1).1 := by
   rw [encode_drop_len p bytes tail]
@@ -107,7 +109,7 @@ How the proof works: rewrite `2 * k` as `k + k`, drop once using
 `encode_drop_len`, drop a second time past `stateDigits`, and use
 `stateDigits.length = k`. This lemma identifies the exact suffix that the
 payload decoder receives after header parsing. -/
-theorem encode_drop_header (p : Params) (bytes : ByteString) (tail : List (Digit p.modulus)) :
+theorem encode_drop_header (p : Params) (bytes : ByteString p.width) (tail : List (Digit p.modulus)) :
     List.drop (2 * p.lengthPrefixDigits) (encode p bytes ++ tail) =
       (encodePayload p bytes.1).2 ++ tail := by
   let k := p.lengthPrefixDigits
@@ -138,7 +140,7 @@ known to decode to `0`, the decoder returns immediately without reading the
 state or payload parts. -/
 theorem decode_zero_length_of_prefix (p : Params) {digits : List (Digit p.modulus)}
     (henough : ¬ digits.length < p.lengthPrefixDigits)
-    (hprefix : p.decodePrefix? (digits.take p.lengthPrefixDigits) = some ⟨0, by simp [u64Bound]⟩) :
+    (hprefix : p.decodePrefix? (digits.take p.lengthPrefixDigits) = some ⟨0, by simp [wordBound]⟩) :
     decode p digits = .ok [] := by
   unfold Params.decode
   dsimp
@@ -149,8 +151,9 @@ theorem decode_zero_length_of_prefix (p : Params) {digits : List (Digit p.modulu
 any suffix decodes to `[]`.
 
 How the proof works: use `decode_zero_length_of_prefix`; the needed prefix
-equality comes from `decodePrefix?_encodeFixedWidthNat` specialized to value `0`,
-and the `take` on the appended suffix is handled by `take_append_of_le_length`. -/
+equality comes from `decodePrefix?_encodeFixedWidthNat` specialized to value
+`0`, and the `take` on the appended suffix is handled by
+`take_append_of_le_length`. -/
 theorem decode_zero_length_prefix_append (p : Params) (tail : List (Digit p.modulus)) :
     decode p (encodeFixedWidthNat p p.lengthPrefixDigits 0 ++ tail) = .ok [] := by
   apply decode_zero_length_of_prefix p
@@ -166,7 +169,7 @@ theorem decode_zero_length_prefix_append (p : Params) (tail : List (Digit p.modu
       simp [k, lenDigits, encodeFixedWidthNat_length] at h ⊢
     rw [hTake]
     simpa [k, lenDigits] using
-      (decodePrefix?_encodeFixedWidthNat p (value := 0) (by simp [u64Bound]))
+      (decodePrefix?_encodeFixedWidthNat p (value := 0) (by simp [wordBound]))
 
 /-- Main end-to-end stream roundtrip theorem with an arbitrary trailing suffix.
 Decoding `encode p bytes ++ tail` recovers the original bytes and ignores the
@@ -185,7 +188,7 @@ How the proof works:
 
 This theorem is the exact formal statement of padding-tolerant end-to-end
 correctness for the wire format. -/
-theorem stream_roundtrip_with_suffix (p : Params) (bytes : ByteString)
+theorem stream_roundtrip_with_suffix (p : Params) (bytes : ByteString p.width)
     (tail : List (Digit p.modulus)) :
     decode p (encode p bytes ++ tail) = .ok bytes.1 := by
   cases' bytes with raw hraw
@@ -196,7 +199,7 @@ theorem stream_roundtrip_with_suffix (p : Params) (bytes : ByteString)
       simpa [encode, encodePayload, k, stateDigits, List.append_assoc] using
         (decode_zero_length_prefix_append p (stateDigits ++ tail))
   | cons b bs =>
-      let bytes : ByteString := ⟨b :: bs, hraw⟩
+      let bytes : ByteString p.width := ⟨b :: bs, hraw⟩
       let k := p.lengthPrefixDigits
       let lenDigits := encodeFixedWidthNat p k (List.length (b :: bs))
       let state := (encodePayload p (b :: bs)).1
@@ -206,8 +209,8 @@ theorem stream_roundtrip_with_suffix (p : Params) (bytes : ByteString)
           decodePrefix? p lenDigits =
             some ⟨List.length (b :: bs), hraw⟩ := by
         exact decodePrefix?_encodeFixedWidthNat p hraw
-      have hstateLt : state < u64Bound := by
-        exact encodePayload_state_lt_u64Bound p (b :: bs)
+      have hstateLt : state < wordBound p.width := by
+        exact encodePayload_state_lt_wordBound p (b :: bs)
       have hstatePrefix :
           decodePrefix? p stateDigits = some ⟨state, hstateLt⟩ := by
         exact decodePrefix?_encodeFixedWidthNat p hstateLt
@@ -244,21 +247,21 @@ theorem stream_roundtrip_with_suffix (p : Params) (bytes : ByteString)
       simp [hStateNotInvalid]
       rw [encode_drop_header p bytes tail, hpayloadTail']
 
-/-- Alias of `stream_roundtrip_with_suffix` under the decode/encode-oriented name
-used by later statements and the paper text. -/
-theorem decode_encode_append (p : Params) (bytes : ByteString) (tail : List (Digit p.modulus)) :
+/-- Alias of `stream_roundtrip_with_suffix` under the decode/encode-oriented
+name used by later statements and the paper text. -/
+theorem decode_encode_append (p : Params) (bytes : ByteString p.width) (tail : List (Digit p.modulus)) :
     decode p (encode p bytes ++ tail) = .ok bytes.1 := by
   simpa using stream_roundtrip_with_suffix p bytes tail
 
 /-- Empty-suffix specialization of `stream_roundtrip_with_suffix`. This is the
 closed end-to-end roundtrip theorem for a self-contained encoded stream. -/
-theorem stream_roundtrip (p : Params) (bytes : ByteString) :
+theorem stream_roundtrip (p : Params) (bytes : ByteString p.width) :
     decode p (encode p bytes) = .ok bytes.1 := by
   simpa using stream_roundtrip_with_suffix p bytes []
 
-/-- Alias of `stream_roundtrip` under the decode/encode-oriented name used as the
-final public correctness statement. -/
-theorem decode_encode (p : Params) (bytes : ByteString) :
+/-- Alias of `stream_roundtrip` under the decode/encode-oriented name used as
+the final public correctness statement. -/
+theorem decode_encode (p : Params) (bytes : ByteString p.width) :
     decode p (encode p bytes) = .ok bytes.1 := by
   simpa using stream_roundtrip p bytes
 

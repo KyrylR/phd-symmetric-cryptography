@@ -20,7 +20,7 @@
 \newcommand{\Gm}{\ensuremath{G_m}}
 \newcommand{\Zmodm}{\ensuremath{\mathbb{Z}/m\mathbb{Z}}}
 \newcommand{\ByteString}{\mathsf{ByteString}}
-\newcommand{\ByteStringBounded}{\ByteString_{64}}
+\newcommand{\ByteStringBounded}{\ByteString_{w}}
 \newcommand{\EncodeM}{\mathsf{Encode}_m}
 \newcommand{\DecodeM}{\mathsf{Decode}_m}
 \newcommand{\EncodePrefixM}{\mathsf{EncodePrefix}_m}
@@ -52,7 +52,7 @@
     \begin{abstract}
         Ring-mapping protocols need a canonical byte-to-residue layer before any algebraic encryption step can begin.
         This paper isolates that layer and presents the \BaseMLen{} codec, a canonical map from
-        byte strings of length less than \(2^{64}\) to lists of residues modulo \(m\).
+        byte strings of length less than \(2^{w}\) to lists of residues modulo \(m\).
         The encoder builds on and adapts one of the rANS-based systems proposed by Duda~\cite{duda2013ans}.
         Decoding is exact for all moduli satisfying the paper’s parameter bounds.
         Because the encoding carries the byte length in its fixed-width header,
@@ -60,7 +60,7 @@
         The paper is accompanied by a Rust implementation of the described protocol, a Lean 4
         formalization of the abstract codec with machine-checked proofs, and performance benchmarks.
         The Lean 4 formalization establishes fixed-width prefix inversion and
-        payload-state bounds below \(2^{64}\), stream-level roundtrip correctness,
+        payload-state bounds below \(2^{w}\), stream-level roundtrip correctness,
         and that every emitted symbol is a valid residue modulo \(m\).
 
         We conclude with a complexity analysis and a discussion of practical considerations arising
@@ -87,15 +87,16 @@
     The present work provides a concrete representation layer that can support such constructions.
 
     This paper defines a canonical byte-to-residue codec for finite-ring cryptosystems.
-    The preferred \BaseMLen{} construction maps each byte string of length less than \(2^{64}\) to a residue stream in \(\Zm\).
+    The preferred \BaseMLen{} construction maps each byte string of length less than \(2^{w}\) to a residue stream in \(\Zm\).
     Its wire format consists of three components: a fixed-width base-\(m\) encoding of the byte length and the final
     payload state, and a payload stream produced by a uniform base-\(m\) transduction.
     The decoder reconstructs the original bytes exactly and stops after the declared length,
     so any additional valid suffix digits are ignored.
 
-    The construction is intended as a representation layer rather than a compression method.
-    For sufficiently large moduli, it may also achieve compression in practice,
-    but this aspect lies outside the scope of the paper.
+    The present construction is not an entropy coder.
+    Its asymptotic payload cost reflects a change of output alphabet rather than a reduction in information content;
+    larger moduli may reduce the number of transmitted residue symbols, but bit-level compression would require an
+    explicit probabilistic source model and lies outside the scope of this paper.
     The payload mechanism follows the normalized-state perspective of ANS and rANS, but is used here to
     obtain a deterministic, self-delimiting residue format rather than a new entropy coder or security primitive~\cite{duda2013ans,giesen2014rans}.
     The problem addressed is orthogonal to ring-based lattice cryptography such as
@@ -106,7 +107,7 @@
         \item It defines a canonical, modulus-parameterized byte-to-residue codec for finite-ring protocols,
         centered on the \BaseMLen{} wire format.
         \item It establishes exact decoding, suffix tolerance, and fixed-width header inversion for supported
-        moduli and byte strings of length less than \(2^{64}\).
+        moduli and byte strings of length less than \(2^{w}\).
         \item It provides a reference implementation and formal specification, consisting of a
         Rust library and a Lean 4 formalization with machine-checked proofs.
     \end{enumerate}
@@ -120,26 +121,31 @@
     \subsection{Core definitions and boundaries}
     \label{subsec:assumptions}
 
+    Throughout the abstract development, we fix a global word width \(w \in \mathbb{N}\) and study those moduli \(m\)
+    for which the codec parameters are well formed at that width.
+    The evaluation in \Cref{sec:evaluation} later instantiates this generic theory at \(w=64\).
+
     \begin{definition}[Supported modulus]
         \label{def:supported-modulus}
-        A \emph{supported modulus} is a modulus \(m\) for which the abstract codec parameters are well-formed, namely
+        For the fixed word width \(w\), a \emph{supported modulus} is a modulus \(m\)
+        for which the abstract codec parameters are well formed, namely
         \[
             2 \le m
             \qquad \text{and} \qquad
-            256 \le \mathsf{decoderLowerBound}(m).
+            256 \le \mathsf{decoderLowerBound}(w,m).
         \]
-        This definition is formalized in \LeanParams{49}{53}.
+        This definition is formalized in \LeanParams{51}{55}.
     \end{definition}
 
     \begin{definition}[Admissible byte string]
-        \label{def:byte-string-64}
-        An \emph{admissible byte string} is a finite sequence of bytes of length less than \(2^{64}\).
+        \label{def:byte-string-bounded}
+        An \emph{admissible byte string} is a finite sequence of bytes of length less than \(2^{w}\).
         We write
         \[
             \ByteStringBounded =
-            \setbuild{\BytesVar \in \set{0,1,\ldots,255}^*}{\abs{\BytesVar} < 2^{64}}.
+            \setbuild{\BytesVar \in \set{0,1,\ldots,255}^*}{\abs{\BytesVar} < 2^{w}}.
         \]
-        This definition is formalized in \LeanSpec{16}{18}.
+        This definition is formalized in \LeanSpec{17}{19}.
     \end{definition}
 
     For each supported modulus \(m\), the abstract codec interface is
@@ -150,15 +156,15 @@
     \]
     The encoder produces valid \BaseM{} digits only, and the decoder either reconstructs an
     admissible byte string or reports failure.
-    The abstract encoder and decoder are formalized in \LeanSpec{145}{181},
-    while the fact that every emitted symbol lies in \([0,m)\) is recorded in \LeanStream{25}{31}.
+    The abstract encoder and decoder are formalized in \LeanSpec{146}{182},
+    while the fact that every emitted symbol lies in \([0,m)\) is recorded in \LeanStream{27}{33}.
 
     The core model treats residue digits as elements of \(\Fin(m)\) from the outset, so malformed raw
-    naturals outside the residue range do not appear inside the proved interface; see \LeanParams{31}{33}
-    for the digit type and \LeanSpec{191}{238} for the boundary validators on plain numeric inputs.
+    naturals outside the residue range do not appear inside the proved interface; see \LeanParams{32}{34}
+    for the digit type and \LeanSpec{184}{239} for the boundary validators on plain numeric inputs.
     The zero-length case is explicit as well: if the length prefix decodes to \(0\), the
-    decoder returns the empty byte string immediately, as in \LeanSpec{154}{168}.
-    The corresponding zero-length decoding lemmas appear in \LeanStream{133}{169}.
+    decoder returns the empty byte string immediately, as in \LeanSpec{159}{169}.
+    The corresponding zero-length decoding lemmas appear in \LeanStream{135}{172}.
 
     \subsection{Implementation and Proof Scope}
     \label{subsec:boundary}
@@ -169,6 +175,8 @@
     \(\mathsf{decode\_bytes\_base\_m\_len}\), with UTF-8 frontends above them.
     On the proof side, Lean formalizes the abstract codec, including supported parameters, fixed-width prefixes,
     payload transduction, and end-to-end stream properties.
+    The current development is width-parametric rather than tied to one machine word size, and the repository
+    includes concrete \(64\)-, \(128\)-, and \(256\)-bit instantiations and smoke theorems in \LeanExamples{58}{70}.
 
     The proof scope is intentionally limited to the abstract specification boundary.
     It does \emph{not} verify the Rust implementation line by line.
@@ -183,17 +191,17 @@
 
     \begin{definition}[Prefix width]
         \label{def:prefix-width}
-        For a supported modulus \(m\), let
+        For the fixed word width \(w\) and a supported modulus \(m\), let
         \[
-            k = \min \set{j \in \mathbb{N}_0 : m^j \ge 2^{64}}.
+            k = \min \set{j \in \mathbb{N}_0 : m^j \ge 2^{w}}.
         \]
-        The fixed-width prefix encoder \(\EncodePrefixM\) represents every \(x < 2^{64}\)
+        The fixed-width prefix encoder \(\EncodePrefixM\) represents every \(x < 2^{w}\)
         as exactly \(k\) little-endian \BaseM{} digits.
     \end{definition}
 
     The same width \(k\) is used for both fixed prefixes in the wire format: the byte length and the final payload state.
-    In the Lean 4 formalization, the definition of this width and its least-width property appear in \LeanParams{72}{90},
-    with bundled forms for parameter packages in \LeanParams{145}{204}.
+    In the Lean 4 formalization, the definition of this width and its least-width property appear in \LeanParams{123}{157},
+    with bundled forms for parameter packages in \LeanParams{215}{271}.
 
     \subsection{Uniform Base-m Payload Transduction}
     \label{subsec:payload}
@@ -204,8 +212,8 @@
         x \leftarrow 256x + b.
     \]
     In the Lean 4 formalization, the bundled definitions of the decoder lower bound \(L\) and the encoder
-    threshold appear in \LeanParams{151}{161}, and the encoder-side and decoder-side renormalization procedures
-    together with the payload transducer are defined in \LeanSpec{80}{143}.
+    threshold appear in \LeanParams{220}{231}, and the encoder-side and decoder-side renormalization procedures
+    together with the payload transducer are defined in \LeanSpec{81}{144}.
     Operationally, the encoder scans the input bytes from right to left.
     Before each byte update, it emits \BaseM{} digits until the current state is below the encoder threshold.
     After the full reverse scan, the emitted payload digits are exposed in FIFO order,
@@ -229,7 +237,7 @@
         where \(\mathit{len} = \EncodePrefixM(\abs{\BytesVar})\), \(\mathit{state}\) is the fixed-width encoding of
         the final payload state, and \(\mathit{payload}\) is the FIFO \BaseM{} digit stream produced by the payload transducer.
     \end{definition}
-    In the Lean 4 formalization, this concatenated wire format is the definition of the abstract encoder; see \LeanSpec{145}{152}.
+    In the Lean 4 formalization, this concatenated wire format is the definition of the abstract encoder; see \LeanSpec{146}{153}.
 
     Decoding is staged in the same order.
     The decoder first reads the length prefix.
@@ -237,15 +245,15 @@
     Otherwise, it reads the state prefix and then consumes exactly as many payload digits
     as are needed to reconstruct the declared number of bytes.
     Any valid digits that remain after those bytes are recovered are left unread.
-    In the Lean 4 formalization, the staged decoder is defined in \LeanSpec{154}{181}; its immediate zero-length return
-    already appears in \LeanSpec{154}{168}, with dedicated zero-length stream lemmas in \LeanStream{133}{169}.
-    The padding-tolerant end-to-end theorem that trailing suffix digits are ignored appears in \LeanStream{171}{263}.
+    In the Lean 4 formalization, the staged decoder is defined in \LeanSpec{159}{182}; its immediate zero-length return
+    already appears in \LeanSpec{159}{169}, with dedicated zero-length stream lemmas in \LeanStream{135}{172}.
+    The padding-tolerant end-to-end theorem that trailing suffix digits are ignored appears in \LeanStream{174}{266}.
 
     \begin{algorithm}[t]
     \caption{Base-m-len encode}
     \KwInput{Admissible byte string \(\BytesVar\), supported modulus \(m\)}
     \KwOutput{Residues in \(\List(\Fin(m))\)}
-    Set \(k \gets \min \set{j \in \mathbb{N}_0 : m^j \ge 2^{64}}\)\;
+    Set \(k \gets \min \set{j \in \mathbb{N}_0 : m^j \ge 2^{w}}\)\;
     Encode \(\abs{\BytesVar}\) as \(k\) little-endian \BaseM{} digits\;
     Initialize the payload state \(x\) at the decoder lower bound \(L\)\;
     %! suppress = MissingImport
@@ -263,7 +271,7 @@
     \caption{Base-m-len decode}
     \KwInput{Residue stream \(digits\), supported modulus \(m\)}
     \KwOutput{\(\Except(\Error, \ByteStringBounded)\)}
-    Set \(k \gets \min \set{j \in \mathbb{N}_0 : m^j \ge 2^{64}}\)\;
+    Set \(k \gets \min \set{j \in \mathbb{N}_0 : m^j \ge 2^{w}}\)\;
     Read the first \(k\) digits as the declared byte length \(\ell\)\;
     %! suppress = MissingImport
     \If{\(\ell = 0\)}{
@@ -281,10 +289,10 @@
     \label{alg:decode-alg}
     \end{algorithm}
 
-    In the Lean 4 formalization, Algorithms~\ref{alg:encode-alg} and~\ref{alg:decode-alg} correspond directly to the definitions in \LeanSpec{80}{181}.
+    In the Lean 4 formalization, Algorithms~\ref{alg:encode-alg} and~\ref{alg:decode-alg} correspond directly to the definitions in \LeanSpec{81}{182}.
 
-    \begin{example}[Worked example for ``Hi'' at \(m=50\)]
-        In the Lean 4 formalization, the companion examples in \LeanExamples{53}{56} evaluate the admissible byte string \([72,105]\) to the residue stream
+    \begin{example}[Worked example for ``Hi'' at \(m=50\) and \(w=64\)]
+        In the Lean 4 formalization, the companion examples in \LeanExamples{90}{93} evaluate the admissible byte string \([72,105]\) to the residue stream
         \begin{lstlisting}[numbers=none,label={lst:lstlisting}]
 [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 8, 11, 36, 6, 32, 19, 0, 38, 1, 49, 1, 1, 48]
         \end{lstlisting}
@@ -317,10 +325,11 @@
     \end{theorem}
 
     \begin{proof}
-        In the Lean 4 formalization, the suffix-tolerant theorem is \LeanStream{171}{251}, and
-        its empty-suffix specialization is \LeanStream{253}{263}.
-        The proof uses the header-parsing lemmas \LeanStream{33}{131}, the zero-length lemmas \LeanStream{133}{169},
-        and the payload roundtrip theorem \LeanPayload{80}{142}.
+        In the Lean 4 formalization, the suffix-tolerant theorem is \LeanStream{174}{254}.
+        Its empty-suffix specialization is \LeanStream{256}{266}.
+        The proof uses the header-parsing lemmas in \LeanStream{35}{133}.
+        The zero-length lemmas appear in \LeanStream{135}{172}, and the payload roundtrip theorem in
+        \LeanPayload{79}{141}.
         It first recovers the declared length prefix, then the stored state prefix, and finally applies the
         payload roundtrip theorem to the remaining suffix.
         The extra-suffix clause follows because decoding stops after reconstructing the declared number
@@ -331,25 +340,25 @@
         \label{thm:k-minimal}
         For every supported modulus \(m\), let
         \[
-            k = \min \set{j \in \mathbb{N}_0 : m^j \ge 2^{64}}.
+            k = \min \set{j \in \mathbb{N}_0 : m^j \ge 2^{w}}.
         \]
         Then
         \[
-            m^k \ge 2^{64}
+            m^k \ge 2^{w}
             \qquad \text{and} \qquad
-            \forall j < k,\; m^j < 2^{64}.
+            \forall j < k,\; m^j < 2^{w}.
         \]
-        Moreover, for every \(x < 2^{64}\),
+        Moreover, for every \(x < 2^{w}\),
         \[
             \DecodePrefixM(\EncodePrefixM(x)) = \Some(x).
         \]
     \end{theorem}
 
     \begin{proof}
-        In the Lean 4 formalization, the least-width property is formalized in \LeanParams{72}{90},
-        with the bundled statement in \LeanParams{193}{204}; fixed-width prefix inversion is proved in \LeanPrefix{64}{86}.
-        Minimality is immediate from the definition of \(k\) as the least exponent with \(m^k \ge 2^{64}\).
-        Once that bound is known, every \(x < 2^{64}\) lies in the domain of the fixed-width \BaseM{} prefix decoder.
+        In the Lean 4 formalization, the least-width property is formalized in \LeanParams{123}{157},
+        with the bundled statement in \LeanParams{260}{271}; fixed-width prefix inversion is proved in \LeanPrefix{65}{89}.
+        Minimality is immediate from the definition of \(k\) as the least exponent with \(m^k \ge 2^{w}\).
+        Once that bound is known, every \(x < 2^{w}\) lies in the domain of the fixed-width \BaseM{} prefix decoder.
     \end{proof}
 
     \begin{proposition}[Payload-state bounds]
@@ -361,26 +370,26 @@
         \]
         In particular,
         \[
-            \mathsf{state}(\BytesVar) < 2^{64}.
+            \mathsf{state}(\BytesVar) < 2^{w}.
         \]
     \end{proposition}
 
     \begin{proof}
-        In the Lean 4 formalization, the normalization-window bound and its \(2^{64}\)
-        corollary are proved in \LeanPayload{17}{78}.
+        In the Lean 4 formalization, the normalization-window bound and its \(2^{w}\)
+        corollary are proved in \LeanPayload{17}{77}.
         The first part is the inductive invariant of the payload transducer; the second follows from the
-        global estimate \(Lm \le 2^{64}-1\).
+        global estimate \(Lm \le 2^{w}-1\).
     \end{proof}
 
     \subsection{Proof Idea and Traceability}
     \label{subsec:proof-skeleton}
 
     The end-to-end proof has three layers.
-    In the Lean 4 formalization, the fixed-width prefix inversion lemmas appear in \LeanPrefix{29}{86},
+    In the Lean 4 formalization, the fixed-width prefix inversion lemmas appear in \LeanPrefix{30}{89},
     the renormalization roundtrip theorems in \LeanRenorm{219}{294}, the payload roundtrip theorems
-    in \LeanPayload{80}{142}, and the final stream theorem in \LeanStream{171}{263}, with the zero-length
-    branch isolated separately in \LeanStream{133}{169}.
-    First, fixed-width \BaseM{} headers invert because the chosen width covers exactly the full 64-bit range.
+    in \LeanPayload{79}{141}, and the final stream theorem in \LeanStream{174}{266}, with the zero-length
+    branch isolated separately in \LeanStream{135}{172}.
+    First, fixed-width \BaseM{} headers invert because the chosen width covers exactly the bounded \(w\)-bit range.
     Second, a renormalization block decodes back to the previous state while preserving any untouched suffix.
     Third, a byte-level induction lifts that state result to the whole payload.
     The stream theorem then combines the two header inversions with the payload
@@ -391,6 +400,8 @@
 
     The evaluation addresses two questions: what the representation costs in theory,
     and whether the preferred streaming construction is practical in native code.
+    Throughout this section, we instantiate the general theory at \(w=64\), so the reported header widths and
+    thresholds are the concrete \(64\)-bit values of the generic formulas from the preceding sections.
 
     \subsection{Complexity and Representation Cost}
     \label{subsec:expansion}
@@ -412,7 +423,8 @@
 
     \begin{figure}[t]
         \centering
-        \caption{Representation cost as a function of the modulus \(m\) over the range \(25 \le m \le 257\). The upper panel shows the smooth payload rate \(\log_m 256\), while the lower panel shows the stepwise fixed header cost \(2k\).}
+        \caption{Representation cost as a function of the modulus \(m\) over the range \(25 \le m \le 257\) in the \(w=64\) instance.
+        The upper panel shows the smooth payload rate \(\log_m 256\), while the lower panel shows the stepwise fixed header cost \(2k\).}
         \label{fig:expansion-curves}
         %! suppress = DiscouragedUseOfDef
         \begin{tikzpicture}
@@ -484,7 +496,7 @@
 
     \begin{table}[t]
         \centering
-        \caption{Asymptotic payload cost and fixed header size for representative moduli.}
+        \caption{Asymptotic payload cost and fixed header size for representative moduli in the \(w=64\) instance.}
         \label{tab:expansion}
         \begin{tabular}{@{}ccc@{}}
             \toprule
@@ -582,7 +594,7 @@
 
     The \BaseMLen{} codec isolates the byte-to-residue representation layer needed by finite-ring protocols.
     Its wire format consists of a fixed-width length prefix, a fixed-width state prefix, and a uniform \BaseM{} payload stream.
-    For every supported modulus and every admissible byte string of length less than \(2^{64}\),
+    For every fixed word width \(w\), every supported modulus, and every admissible byte string of length less than \(2^{w}\),
     decoding recovers the original bytes and is tolerant of any valid trailing suffix.
 
     The released Rust library~\cite{riabov2026encodingcrate} and the benchmark suite in the

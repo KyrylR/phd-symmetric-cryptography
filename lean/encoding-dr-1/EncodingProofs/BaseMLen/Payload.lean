@@ -63,19 +63,18 @@ theorem encodePayload_state_bounds (p : Params) :
         exact lt_of_lt_of_le hlt1 <| by
           simpa [tail, q, encodePayload, p.encoderThreshold_mul_256] using hlt2
 
-/-- The payload state also lies below the global 64-bit bound `2^64`.
+/-- The payload state also lies below the global word bound `2^w`.
 
 How the proof works: combine `encodePayload_state_bounds`, which gives
-`state < L * m`, with `decoderLowerBound_mul_modulus_le_u64Max` and the trivial
-fact `u64Max < u64Bound`. This theorem is used when the payload state is later
-stored in the fixed-width state prefix. -/
-theorem encodePayload_state_lt_u64Bound (p : Params) (bs : List Byte) :
-    (encodePayload p bs).1 < u64Bound := by
+`state < L * m`, with `decoderLowerBound_mul_modulus_le_wordMax` and the trivial
+fact `wordMax p.width < wordBound p.width`. This theorem is used when the
+payload state is later stored in the fixed-width state prefix. -/
+theorem encodePayload_state_lt_wordBound (p : Params) (bs : List Byte) :
+    (encodePayload p bs).1 < wordBound p.width := by
   have hbound := (encodePayload_state_bounds p bs).2
-  have hu64 : p.decoderLowerBound * p.modulus ≤ u64Max := p.decoderLowerBound_mul_modulus_le_u64Max
-  have humax : u64Max < u64Bound := by
-    simp [u64Max, u64Bound]
-  exact lt_of_lt_of_le hbound (le_trans hu64 (Nat.le_of_lt humax))
+  have hmax : p.decoderLowerBound * p.modulus ≤ wordMax p.width :=
+    p.decoderLowerBound_mul_modulus_le_wordMax
+  exact lt_of_lt_of_le hbound (le_trans hmax (Nat.le_of_lt (wordMax_lt_wordBound p.width)))
 
 /-- Main payload roundtrip theorem with an arbitrary trailing suffix. Decoding
 exactly `bs.length` bytes from the state/payload pair produced by `encodePayload`

@@ -14,8 +14,8 @@ namespace EncodingProofs.BaseMLen
 
 /-! All declarations in `namespace Params` are renormalization facts for a fixed
 supported parameter package `p`. Theorems here explain both why renormalization
-is safe inside the 64-bit state space and how the two procedures cancel each
-other. -/
+is safe inside the bounded `p.width`-bit state space and how the two procedures
+cancel each other. -/
 namespace Params
 
 /-- The decoder lower bound is exactly divisible by `256`. This is true because
@@ -37,7 +37,7 @@ the byte alphabet size `256` and the base-`m` normalization window. -/
 theorem encoderThreshold_mul_256 (p : Params) :
     p.encoderThreshold * 256 = p.decoderLowerBound * p.modulus := by
   unfold Params.encoderThreshold EncodingProofs.BaseMLen.encoderThreshold
-  rw [EncodingProofs.BaseMLen.decoderLowerBound_div_256 p.modulus]
+  rw [EncodingProofs.BaseMLen.decoderLowerBound_div_256 p.width p.modulus]
   unfold Params.decoderLowerBound EncodingProofs.BaseMLen.decoderLowerBound
   ring1
 
@@ -54,21 +54,21 @@ theorem encoderThreshold_lt_mul (p : Params) :
   simpa [Nat.mul_comm] using
     Nat.mul_le_mul_left p.encoderThreshold (show 1 ≤ (256 : Nat) by decide)
 
-/-- The entire normalization window fits below the largest 64-bit value:
-`L * m ≤ u64Max`.
+/-- The entire normalization window fits below the largest representable word
+value: `L * m ≤ wordMax w`.
 
 How the proof works: unfold `decoderLowerBound` and compare
-`((u64Max / m) / 256 * 256) * m` with `(u64Max / m) * m`, then apply the basic
-division inequality `(u64Max / m) * m ≤ u64Max`. This is the safety theorem
-showing that the window construction respects the global state bound. -/
-theorem decoderLowerBound_mul_modulus_le_u64Max (p : Params) :
-    p.decoderLowerBound * p.modulus ≤ u64Max := by
+`((wordMax w / m) / 256 * 256) * m` with `(wordMax w / m) * m`, then apply the
+basic division inequality `(wordMax w / m) * m ≤ wordMax w`. This is the safety
+theorem showing that the window construction respects the global state bound. -/
+theorem decoderLowerBound_mul_modulus_le_wordMax (p : Params) :
+    p.decoderLowerBound * p.modulus ≤ wordMax p.width := by
   unfold Params.decoderLowerBound EncodingProofs.BaseMLen.decoderLowerBound
   calc
-    ((u64Max / p.modulus) / 256 * 256) * p.modulus
-        ≤ (u64Max / p.modulus) * p.modulus := by
+    ((wordMax p.width / p.modulus) / 256 * 256) * p.modulus
+        ≤ (wordMax p.width / p.modulus) * p.modulus := by
           exact Nat.mul_le_mul_right _ (Nat.div_mul_le_self _ _)
-    _ ≤ u64Max := Nat.div_mul_le_self _ _
+    _ ≤ wordMax p.width := Nat.div_mul_le_self _ _
 
 /-- Unfolding lemma for the recursive branch of `renormEncode`. It records the
 defining equation used whenever the input state satisfies `T ≤ x`. -/

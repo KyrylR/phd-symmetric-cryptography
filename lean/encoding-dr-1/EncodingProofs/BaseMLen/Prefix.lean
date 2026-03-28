@@ -2,7 +2,8 @@ import EncodingProofs.BaseMLen.Spec
 import Mathlib
 
 /-!
-Prefix-correctness lemmas for the length-delimited base-`m` specification.
+Prefix-correctness lemmas for the width-parametric length-delimited base-`m`
+specification.
 
 This file proves that fixed-width base-`m` prefixes have the expected shape and
 that decoding reverses encoding on every value that fits into the chosen width.
@@ -62,26 +63,28 @@ theorem decodeDigitsNat_encodeFixedWidthNat_of_lt (p : Params) :
               simpa [Nat.mul_comm] using (Nat.mod_add_div value p.modulus)
 
 /-- The fixed-width prefix decoder inverts `encodeFixedWidthNat` at the width
-chosen by `p.lengthPrefixDigits`, provided the input value is below `2^64`.
+chosen by `p.lengthPrefixDigits`, provided the input value is below `2^w`.
 
 How the proof works:
 
-* `lengthPrefixDigits_spec` upgrades `value < 2^64` to
+* `lengthPrefixDigits_spec` upgrades `value < 2^w` to
   `value < p.modulus ^ p.lengthPrefixDigits`;
 * `encodeFixedWidthNat_length` discharges the decoder's width check;
 * `decodeDigitsNat_encodeFixedWidthNat_of_lt` supplies the actual arithmetic
   inversion.
 -/
-theorem decodePrefix?_encodeFixedWidthNat (p : Params) {value : Nat} (hvalue : value < u64Bound) :
+theorem decodePrefix?_encodeFixedWidthNat (p : Params) {value : Nat}
+    (hvalue : value < wordBound p.width) :
     decodePrefix? p (encodeFixedWidthNat p p.lengthPrefixDigits value) = some ⟨value, hvalue⟩ := by
   have hpow : value < p.modulus ^ p.lengthPrefixDigits :=
     lt_of_lt_of_le hvalue p.lengthPrefixDigits_spec
-  simp [decodePrefix?, encodeFixedWidthNat_length, hvalue, decodeDigitsNat_encodeFixedWidthNat_of_lt p hpow]
+  simp [decodePrefix?, encodeFixedWidthNat_length, hvalue,
+    decodeDigitsNat_encodeFixedWidthNat_of_lt p hpow]
 
 /-- Specialization of `decodePrefix?_encodeFixedWidthNat` to the bounded type
-`U64Val`. This is the form used later when the header values are already packaged
-with their proof of lying below `2^64`. -/
-theorem decodePrefix?_encodePrefix (p : Params) (value : U64Val) :
+`WordVal p.width`. This is the form used later when the header values are
+already packaged with their proof of lying below `2^w`. -/
+theorem decodePrefix?_encodePrefix (p : Params) (value : WordVal p.width) :
     decodePrefix? p (encodePrefix p value) = some value := by
   simpa [encodePrefix] using decodePrefix?_encodeFixedWidthNat p value.2
 

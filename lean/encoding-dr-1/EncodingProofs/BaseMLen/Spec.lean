@@ -2,28 +2,29 @@ import EncodingProofs.BaseMLen.Params
 import Mathlib
 
 /-!
-Executable specification of the length-delimited base-`m` byte encoder/decoder.
+Executable specification of the width-parametric length-delimited base-`m` byte
+encoder/decoder.
 
-This file builds on `Params` by defining the concrete wire format, the prefix and
-payload transformations, and small adapters used by the examples. The key point is
-that everything below operates for a fixed supported parameter package `p`, so the
-implementation can refer directly to `p.modulus`, `p.lengthPrefixDigits`,
-`p.decoderLowerBound`, and `p.encoderThreshold`.
+This file builds on `Params` by defining the concrete wire format, the prefix
+and payload transformations, and small adapters used by the examples. The key
+point is that everything below operates for a fixed supported parameter package
+`p`, so the implementation can refer directly to `p.width`, `p.modulus`,
+`p.lengthPrefixDigits`, `p.decoderLowerBound`, and `p.encoderThreshold`.
 -/
 
 namespace EncodingProofs.BaseMLen
 
 /-- Byte strings accepted by the encoder. The length bound exists because the
-wire format stores the byte length in a 64-bit fixed-width prefix. -/
-abbrev ByteString := { bs : List Byte // bs.length < u64Bound }
+wire format stores the byte length in a fixed-width `w`-bit prefix. -/
+abbrev ByteString (w : Nat) := { bs : List Byte // bs.length < wordBound w }
 
 /-- Errors reported by the decoder when the input stream is too short or violates
-the format invariants. The constructors distinguish which stage of the wire-format
-parse failed. -/
+the format invariants. The constructors distinguish which stage of the wire
+format parse failed. -/
 inductive DecodeError where
   /-- The stream ended before the length prefix was fully read. -/
   | notEnoughLengthDigits
-  /-- A fixed-width prefix decoded to a value outside `[0, 2^64)`. -/
+  /-- A fixed-width prefix decoded to a value outside `[0, 2^w)`. -/
   | decodedValueTooLarge
   /-- The stream ended before the state prefix was fully read. -/
   | notEnoughStateDigits
@@ -50,10 +51,10 @@ def encodeFixedWidthNat (p : Params) : Nat → Nat → List (Digit p.modulus)
   | 0, _ => []
   | k + 1, value => p.natDigit value :: encodeFixedWidthNat p k (value / p.modulus)
 
-/-- Encode a 64-bit bounded value using the fixed prefix width selected by `p`.
+/-- Encode a bounded word value using the fixed prefix width selected by `p`.
 This is the common serializer used for both the byte length and the initial
 decoder state in the wire format. -/
-def encodePrefix (p : Params) (value : U64Val) : List (Digit p.modulus) :=
+def encodePrefix (p : Params) (value : WordVal p.width) : List (Digit p.modulus) :=
   encodeFixedWidthNat p p.lengthPrefixDigits value.1
 
 /-- Interpret a little-endian base-`m` digit list as a natural number. This is
@@ -64,13 +65,13 @@ def decodeDigitsNat (p : Params) : List (Digit p.modulus) → Nat
   | [] => 0
   | d :: ds => d.1 + p.modulus * decodeDigitsNat p ds
 
-/-- Decode a fixed-width prefix back into a bounded 64-bit value. The length
-check enforces that the caller supplied exactly one prefix block, and the final
-bound check rejects values outside `[0, 2^64)`. -/
-def decodePrefix? (p : Params) (digits : List (Digit p.modulus)) : Option U64Val :=
+/-- Decode a fixed-width prefix back into a bounded word value. The length check
+enforces that the caller supplied exactly one prefix block, and the final bound
+check rejects values outside `[0, 2^w)`. -/
+def decodePrefix? (p : Params) (digits : List (Digit p.modulus)) : Option (WordVal p.width) :=
   if _ : digits.length = p.lengthPrefixDigits then
     let value := decodeDigitsNat p digits
-    if hval : value < u64Bound then
+    if hval : value < wordBound p.width then
       some ⟨value, hval⟩
     else
       none
@@ -142,10 +143,10 @@ def decodePayload (p : Params) :
           | .error err => .error err
           | .ok (decoded, rest) => .ok (byte :: decoded, rest)
 
-/-- Encode a byte string into the external wire format
-`length || state || payload`. The fixed-width prefixes carry the byte length and
-final state; the payload digits are produced by `encodePayload`. -/
-def encode (p : Params) (bytes : ByteString) : List (Digit p.modulus) :=
+/-- Encode a byte string into the external wire format `length || state ||
+payload`. The fixed-width prefixes carry the byte length and final state; the
+payload digits are produced by `encodePayload`. -/
+def encode (p : Params) (bytes : ByteString p.width) : List (Digit p.modulus) :=
   let lenDigits := encodeFixedWidthNat p p.lengthPrefixDigits bytes.1.length
   let (state, payload) := encodePayload p bytes.1
   let stateDigits := encodeFixedWidthNat p p.lengthPrefixDigits state
@@ -221,7 +222,7 @@ def encodeNatBytes? (p : Params) (bytes : List Nat) : Option (List Nat) :=
   match bytesOfNatList? bytes with
   | none => none
   | some bs =>
-      if h : bs.length < u64Bound then
+      if h : bs.length < wordBound p.width then
         some <| (encode p ⟨bs, h⟩).map Fin.val
       else
         none
