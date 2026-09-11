@@ -4,5 +4,10 @@ version.workspace = true
 edition.workspace = true
 publish.workspace = true
 license.workspace = true
+description = "Core logic for the PhD thesis 'Algebraic-automata methods for the development of symmetric cryptosystems'"
+readme = "README.md"
 
 [dependencies]
+
+[lints.rust]
+unsafe_code = "forbid"
