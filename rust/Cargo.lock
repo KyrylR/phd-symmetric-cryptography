@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "phd-symmetric-cryptography"
+name = "phd-core"
 version = "0.1.0"

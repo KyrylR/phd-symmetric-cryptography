@@ -1,7 +1,9 @@
-[package]
-name = "phd-symmetric-cryptography"
+[workspace]
+members = ["crates/*"]
+resolver = "3"
+
+[workspace.package]
 version = "0.1.0"
 edition = "2024"
 publish = false
-
-[dependencies]
+license = "MIT OR Apache-2.0"

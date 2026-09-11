@@ -1,0 +1,13 @@
+# Licensing
+
+Original contributions use these terms unless a file states otherwise:
+
+- Papers, figures, and prose documentation: CC BY 4.0.
+- Rust source, executable examples, tests, and formal proof code: MIT OR Apache-2.0, at the recipient's choice.
+- Research datasets and metadata: CC0 1.0.
+
+Third-party material retains its original license. These terms do not relicense
+quoted sources, imported code, or external datasets.
+
+Full texts are in LICENSES/CC-BY-4.0.txt, LICENSES/MIT.txt,
+LICENSES/Apache-2.0.txt, and LICENSES/CC0-1.0.txt.
