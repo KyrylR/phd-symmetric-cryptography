@@ -1,0 +1,12 @@
+/.idea/
+**/target/
+**/.lake/
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+*.toc
+*.run.xml
