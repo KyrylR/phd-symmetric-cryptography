@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: macos-15
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: nix develop --no-update-lock-file --command bash -euo pipefail {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: cachix/install-nix-action@v31
+
+      - uses: nix-community/cache-nix-action@v7
+        with:
+          primary-key: nix-macos-15-${{ runner.arch }}-${{ hashFiles('flake.nix', 'flake.lock') }}
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.rustup/toolchains
+            ~/.elan/toolchains
+            ~/.cache/hax
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: tools-macos-15-${{ runner.arch }}-${{ hashFiles('flake.nix', 'flake.lock', 'rust/rust-toolchain.toml', 'rust/hax.toml', '**/lean-toolchain', 'rust/Cargo.lock') }}
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            rust/target
+            rust/crates/core/proofs/lean/.lake
+          key: build-macos-15-${{ runner.arch }}-${{ hashFiles('flake.nix', 'flake.lock', 'rust/rust-toolchain.toml', 'rust/hax.toml', 'rust/Cargo.lock', '**/Cargo.toml', '**/lean-toolchain', '**/lake-manifest.json', '**/lakefile.*') }}-${{ github.sha }}
+          restore-keys: |
+            build-macos-15-${{ runner.arch }}-${{ hashFiles('flake.nix', 'flake.lock', 'rust/rust-toolchain.toml', 'rust/hax.toml', 'rust/Cargo.lock', '**/Cargo.toml', '**/lean-toolchain', '**/lake-manifest.json', '**/lakefile.*') }}-
+
+      - name: Format
+        run: cargo fmt --manifest-path rust/Cargo.toml --all -- --check
+
+      - name: Build
+        run: cargo build --manifest-path rust/Cargo.toml --workspace --all-targets --all-features --locked
+
+      - name: Test
+        run: cargo test --manifest-path rust/Cargo.toml --workspace --all-targets --all-features --locked
+
+      - name: Test documentation
+        run: cargo test --manifest-path rust/Cargo.toml --workspace --doc --all-features --locked
+
+      - name: Clippy
+        run: cargo clippy --manifest-path rust/Cargo.toml --workspace --all-targets --all-features --locked
+
+      - name: Build documentation
+        run: cargo doc --manifest-path rust/Cargo.toml --workspace --all-features --no-deps --locked
+
+      - name: Extract and build Lean
+        run: just lean
