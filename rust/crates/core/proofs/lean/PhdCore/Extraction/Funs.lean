@@ -27,9 +27,13 @@ noncomputable section
 namespace phd_core
 
 /-- [phd_core::arithmetic::modulo::{phd_core::arithmetic::modulo::Ring}::new]:
-    Source: 'crates/core/src/arithmetic/modulo.rs', lines 10:4-12:5 -/
+    Source: 'crates/core/src/arithmetic/modulo.rs', lines 12:4-18:5 -/
 def arithmetic.modulo.Ring.new
-  (modulo : Std.U64) : RustM arithmetic.modulo.Ring := do
-  ok { modulo }
+  (modulo : Std.U64) :
+  RustM (core.result.Result arithmetic.modulo.Ring arithmetic.errors.RingError)
+  := do
+  if modulo = 0#u64
+  then ok (core.result.Result.Err arithmetic.errors.RingError.ZeroModulo)
+  else ok (core.result.Result.Ok { modulo })
 
 end phd_core

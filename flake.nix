@@ -10,6 +10,13 @@
 
       toolchain = (builtins.fromTOML (builtins.readFile ./rust/rust-toolchain.toml)).toolchain.channel;
 
+      extractionRoots = [
+        "phd_core::arithmetic::modulo"
+      ];
+      extractionArgs = pkgs.lib.escapeShellArgs (
+        pkgs.lib.concatMap (root: [ "--start-from" root ]) extractionRoots
+      );
+
       hax = pkgs.stdenvNoCC.mkDerivation {
         pname = "cargo-hax";
         version = "0.4.0";
@@ -34,8 +41,9 @@
           export MIRI_SYSROOT="$cache_root/${toolchain}-${system}"
           unset HAX_AENEAS_BINARY HAX_CHARON_BINARY RUSTC RUSTC_WRAPPER RUSTC_WORKSPACE_WRAPPER
           rustup run ${toolchain} cargo miri setup
+          extraction_args=${pkgs.lib.escapeShellArg extractionArgs}
           exec ${hax}/bin/cargo-hax hax into lean \
-            --charon-args="--sysroot '$MIRI_SYSROOT'" "$@"
+            --charon-args="--sysroot '$MIRI_SYSROOT' $extraction_args" "$@"
         '';
       };
     in {

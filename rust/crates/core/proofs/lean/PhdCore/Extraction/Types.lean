@@ -21,13 +21,20 @@ set_option maxRecDepth 2048
 
 namespace phd_core
 
+/-- [phd_core::arithmetic::errors::RingError]
+    Source: 'crates/core/src/arithmetic/errors.rs', lines 5:0-7:1
+    Visibility: public -/
+@[discriminant isize]
+inductive arithmetic.errors.RingError where
+| ZeroModulo : arithmetic.errors.RingError
+
 /-- [phd_core::arithmetic::modulo::Ring]
-    Source: 'crates/core/src/arithmetic/modulo.rs', lines 3:0-5:1 -/
+    Source: 'crates/core/src/arithmetic/modulo.rs', lines 5:0-7:1 -/
 structure arithmetic.modulo.Ring where
   modulo : Std.U64
 
 /-- [phd_core::arithmetic::modulo::RingItem]
-    Source: 'crates/core/src/arithmetic/modulo.rs', lines 7:0-7:32 -/
+    Source: 'crates/core/src/arithmetic/modulo.rs', lines 9:0-9:32 -/
 @[reducible]
 def arithmetic.modulo.RingItem := Std.U64
 

@@ -10,3 +10,6 @@
 *.synctex.gz
 *.toc
 *.run.xml
+
+# Ignored because it is regenerated every time with just lean command
+rust/crates/core/proofs/lean/llbc/phd_core.llbc
